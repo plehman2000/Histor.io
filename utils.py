@@ -2,41 +2,9 @@ import spacy
 import random
 import requests
 import pandas as pd
-nlp = spacy.load('en_core_web_lg')
 
-def wikiExplainer(title, removeEscapeChars=False, explainerLength=3):
-    
-    response = requests.get(
-         'https://en.wikipedia.org/w/api.php',
-         params={
-             'action': 'query',
-             'format': 'json',
-             'titles': title,
-             'prop': 'extracts',
-             'exintro': True,
-             'explaintext': True,
-         }).json()
-    response = requests.get("https://en.wikipedia.org/w/api.php?format=json&action=query&prop=extracts&exlimit=max&explaintext&exintro&titles=" + title.replace(" ", "_") + "|" + title.replace(" ", "_") + "&redirects=").json()
-    explainer = next(iter(response['query']['pages'].values()))
-    if 'extract' in explainer:
-        explainer = explainer['extract']
-        if removeEscapeChars:
-            explainer = ''.join(c for c in explainer if c.isalnum() or c==' ')
-            explainer = explainer.replace("\n", " ")
-    else:
-        explainer = ""
-
-    doc = nlp(explainer)
-    explainer = ""
-    for j,sentence in enumerate(doc.sents):
-        if(j+1 > explainerLength):
-            break
-        else:
-            explainer += str(sentence.text) + " "
-    if explainer == "":
-        return "No Wikipedia Data Available"
-    return explainer
 class Person:
+    #Class for managing rows of Age dataset dataframe
     def __init__(self, person: pd.core.series.Series):
         templist = list(person)
         self.name = templist[2]
@@ -48,66 +16,101 @@ class Person:
         self.death = int(templist[8])
         self.manner = templist[9]
         self.wikidata = wikiExplainer(templist[1], removeEscapeChars=False)
-
     def __str__(self):
         return f"{self.name}, {self.birth}-{self.death}, {self.desc}"
 
+
 class BSTNode:
     def __init__(self, blob=None):
-        self.left = None
-        self.right = None
+        self.lchild = None
+        self.rchild = None
         self.key = blob[0]
-        self.dict = blob[1]
-
+        self.dict_list = blob[1] #l
 
     def insert(self, blob):
-        if not self.key:
+        # Tree Empty Case
+        if (self.key == None):
             self.key = blob[0]
-            self.dict = blob[1]
+            self.dict_list = blob[1]
             return
-        if self.key == blob[0]: #already in tree
+        # Key already in tree
+        if (self.key == blob[0]):
             return
-
-        if blob[0] < self.key:#left insert case
-            if self.left:
-                self.left.insert(blob)
+        # Left Child Insert Case
+        if (blob[0] < self.key):
+            if (self.lchild != None):
+                self.lchild.insert(blob)
                 return
-            self.left = BSTNode(blob)
+            self.lchild = BSTNode(blob)
+            return
+        # Righ Child Insert Case
+        if self.rchild:
+            self.rchild.insert(blob)
             return
 
-        if self.right:#right insert case
-            self.right.insert(blob)
-            return
-        self.right = BSTNode(blob)
+        self.rchild = BSTNode(blob)
 
     def search(self, key):
-        if key == self.key:
-            return self.dict
-
-        if key < self.key:
-            if self.left == None:
+        # Current Node is wanted
+        if (key == self.key):
+            return self.dict_list
+        # Node may be to the left of current node
+        if (key < self.key):
+            if self.lchild == None:
                 return False
-            return self.left.search(key)
-
-        if self.right == None:
+            return self.lchild.search(key)
+        # Otherwise, Node may be to the right of the current node
+        if (self.rchild == None):
             return False
-        return self.right.search(key)
+        return self.rchild.search(key)
 
 
 def reformat(lis, year):
+    # reformats hashmap data to BST acceptable input
     dict_list = []
     for item in lis:
         new_dict = {}
         new_dict['Media Type'] = item["titleType"]
         new_dict["Title"] = item['primaryTitle']
         dict_list.append(new_dict)
-   
-    return [year,dict_list]
+
+    return [year, dict_list]
+
+nlp = spacy.load('en_core_web_lg')
 
 
-# print(f"Age Size: {len(age)}")
+def wikiExplainer(title, removeEscapeChars=False, explainerLength=3):
 
+    response = requests.get(
+        'https://en.wikipedia.org/w/api.php',
+        params={
+            'action': 'query',
+            'format': 'json',
+            'titles': title,
+            'prop': 'extracts',
+            'exintro': True,
+            'explaintext': True,
+        }).json()
+    response = requests.get("https://en.wikipedia.org/w/api.php?format=json&action=query&prop=extracts&exlimit=max&explaintext&exintro&titles=" +
+                            title.replace(" ", "_") + "|" + title.replace(" ", "_") + "&redirects=").json()
+    explainer = next(iter(response['query']['pages'].values()))
+    if 'extract' in explainer:
+        explainer = explainer['extract']
+        if removeEscapeChars:
+            explainer = ''.join(
+                c for c in explainer if c.isalnum() or c == ' ')
+            explainer = explainer.replace("\n", " ")
+    else:
+        explainer = ""
 
-
-
+    doc = nlp(explainer)
+    explainer = ""
+    for j, sentence in enumerate(doc.sents):
+        if(j+1 > explainerLength):
+            break
+        else:
+            explainer += str(sentence.text) + " "
+    if explainer == "":
+        return "No Wikipedia Data Available"
+    return explainer
 
